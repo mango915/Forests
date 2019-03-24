@@ -21,18 +21,7 @@ class Metropolis:
                         multipliers and the constraint functions computed for the given configuration
     configs          : numpy ndarray of N rows and S columns, to store the sampled configurations
     history          : list of the records of all the accepted and refused steps 
-           
-    Methods
-    ------------
-    
-    _init_          : builds the model and initialize the parameters
-    set_hamiltonian : sets L_multipliers and constraint_funcs
-    compute_energy  : compute the energy of a configuration
-    choice          : implement Metropolis choice
-    calibrate       : starts from a random configurations and sets the first configuration in configs as the one at 
-                      which the acceptance rate of the last M configurations is under max_acceptance
-    sample          : computes configs
-    
+
     """
     
     def __init__ (self, S, M = 100, N = 1000, max_acceptance = 0.1):
@@ -43,16 +32,19 @@ class Metropolis:
         self.history = []
         
     def set_hamiltonian(self, L_multipliers, constraint_funcs):
+        """ Sets L_multipliers and constraint_funcs."""
         self.L_multipliers = np.array(L_multipliers)
         self.constraint_funcs = constraint_funcs
         if len(L_multipliers) != (len(constraint_funcs)):
             raise Exception("L_multipliers and constraint_funcs must have the same length!")
         
     def compute_energy(self, s): # should I use self?
-        constraints =  np.array(list(map(lambda f: f(s), constraint_funcs)))
-        self.energy = np.dot(constraints, L_multipliers)
+        """Computes the energy of a configuration."""
+        constraints =  np.array(list(map(lambda f: f(s), self.constraint_funcs)))
+        self.energy = np.dot(constraints, self.L_multipliers)
     
     def choice(self, last_config, new_config): # should I use self? 
+        """Implements Metropolis choice."""
         last_energy = self.compute_energy(last_config)
         new_energy = self.compute_energy(new_config)
         if  new_energy < last_energy:
@@ -65,7 +57,8 @@ class Metropolis:
                 return False
  
     def calibrate(self):
-        
+        """Starts from a random configurations and sets the first configuration in configs as the one at 
+           which the acceptance rate of the last M configurations is under max_acceptance."""
         # starting configuration
         s_last = np.random.choice([+1,-1], size = self.S)
         # sort an index between 0 and S to flip
@@ -103,6 +96,7 @@ class Metropolis:
         self.configs[0] = s_last
         
     def sample(self, N):
+        """Computes and returns N configurations of the system."""
         self.configs = np.zeros((N,S))
         self.calibrate() 
         
