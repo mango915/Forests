@@ -30,6 +30,10 @@ class Metropolis:
         self.N = N
         self.max_acceptance = max_acceptance
         self.history = []
+        self.L_multipliers = None
+        self.constraint_funcs = None
+        self.configs = None
+        
         
     def set_hamiltonian(self, L_multipliers, constraint_funcs):
         """ Sets L_multipliers and constraint_funcs."""
@@ -41,7 +45,8 @@ class Metropolis:
     def compute_energy(self, s): # should I use self?
         """Computes the energy of a configuration."""
         constraints =  np.array(list(map(lambda f: f(s), self.constraint_funcs)))
-        self.energy = np.dot(constraints, self.L_multipliers)
+        return np.dot(constraints, self.L_multipliers)
+
     
     def choice(self, last_config, new_config): # should I use self? 
         """Implements Metropolis choice."""
@@ -64,13 +69,12 @@ class Metropolis:
         # sort an index between 0 and S to flip
         flip_spin = np.random.randint(low = 0, high = self.S)
         # the next configuration (still to be accepted) is similar to the last
-        s_next = s_last
+        s_next = np.copy(s_last)
         # except for the flipped spin
-        s_next[flip_spin] = -1*s_last[flip_spin]
-        
+        s_next[flip_spin] = -s_last[flip_spin]
         if self.choice(s_last, s_next): #returns True or False, if True we accept it
             self.history.append(1) # keep the record
-            s_last = s_next
+            s_last = np.copy(s_next)
         else:
             self.history.append(0)
             
@@ -78,14 +82,17 @@ class Metropolis:
         # to have an average acceptance rate below max_acceptance
         # accept = +1, refuse = 0, history.mean() = accept/total
         
-        while len(self.history) < self.M and self.history[-index:].mean() > sel.max_acceptance:
+        index = min(len(self.history), self.M)
+        
+        while ( len(self.history) < self.M ) or \
+               ( (np.mean(self.history[-index:]) > self.max_acceptance)  and  (len(self.history) >= self.M) ):
             flip_spin = np.random.randint(low = 0, high = self.S)
-            s_next = s_last
-            s_next[flip_spin] = -1*s_last[flip_spin]
+            s_next = np.copy(s_last)
+            s_next[flip_spin] = -s_last[flip_spin]
 
             if self.choice(s_last, s_next): 
                 self.history.append(1)
-                s_last = s_next
+                s_last = np.copy(s_next)
             else:
                 self.history.append(0)
                 
@@ -93,19 +100,23 @@ class Metropolis:
             index = min(len(self.history), self.M)
         
         print("Acceptance rate criteria satisfied after %.d attempts."%len(self.history))
-        self.configs[0] = s_last
+        #print("History of calibration: ", self.history)
+        #print("Mean acceptance rate: ", np.mean(self.history[-index:])) 
+        self.configs[0] = np.copy(s_last)
         
-    def sample(self, N):
+    def sample(self, N = None):
         """Computes and returns N configurations of the system."""
-        self.configs = np.zeros((N,S))
+        if N != None:
+            self.N = N
+        self.configs = np.zeros((self.N,self.S))
         self.calibrate() 
         
         # at the end of calibration the first configuration is already stored, 
         # thus we have to sample other N-1 configurations
-        for i in range(N-1):
+        for i in range(self.N-1):
             s_last = self.configs[i] 
             flip_spin = np.random.randint(low = 0, high = self.S)
-            s_next = s_last
+            s_next = np.copy(s_last)
             s_next[flip_spin] = -1*s_last[flip_spin]
 
             if self.choice(s_last, s_next): 
