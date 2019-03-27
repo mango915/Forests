@@ -99,7 +99,7 @@ class Metropolis:
             # number of elements (from the last one) among which compute the average
             index = min(len(self.history), self.M)
         
-        print("Acceptance rate criteria satisfied after %.d attempts."%len(self.history))
+        #print("Acceptance rate criteria satisfied after %.d attempts."%len(self.history))
         #print("History of calibration: ", self.history)
         #print("Mean acceptance rate: ", np.mean(self.history[-index:])) 
         self.configs[0] = np.copy(s_last)
