@@ -60,27 +60,21 @@ class Metropolis:
         self.model_configs = None
 
 
-    def dE(self, spin, k, flag = False):
-        #print("entering energy function")
+    def dE(self, Sp, spin, k):
         l_k = self.L_multipliers[k]
-        if flag:
-            print("l_k: ",l_k)
-        #l_0 = self.L_multipliers[0]
-        return 2*l_k*spin #+ 4*l_0*spin*(2*Sp - self.S + spin) # <----------- VALUES? ( > eps, < 0 ?)
+        l_0 = self.L_multipliers[0]
+        return 2*l_k*spin + 4*l_0*spin*(2*Sp - self.S + spin) # <----------- VALUES? ( > eps, < 0 ?)
 
 
-    def acceptance(self, spin, k, flag = False):
+    def acceptance(self, Sp, spin, k):
         """Implements Metropolis choice."""
         # regularizer?
-        DE = self.dE(spin, k, flag=False)
-        if flag:
-            print("DE:", DE)
-        if  DE < 0:
+        dE = self.dE(Sp, spin, k)
+        if  dE < 0:
             return True
         else:
             P = np.random.random()
-            if P < np.exp(-DE):
-                print(DE)                 #in teoria no <------------------- BETA?
+            if P < np.exp(-dE):                 #in teoria no <------------------- BETA?
                 return True
             else:
                 return False
@@ -94,18 +88,19 @@ class Metropolis:
         configuration = np.random.choice([+1,-1], size = self.S)
 
         while(acceptance_rate > self.max_acceptance):
+            Sp = np.count_nonzero(configuration+1)
 
             # sort M indexes between 0 and S to flips
             flip_spins = np.random.randint(low = 0, high = self.S, size = self.M)
 
             for index in flip_spins:
                 spin = -configuration[index]
-                if self.acceptance(spin, index):     # <-------------- acceptances?
-                    self.acceptance_history.append(1)
+                if self.acceptance(Sp, spin, index):     # <-------------- acceptances?
+                    self.acceptance_history.append(1) #
                     configuration[index] = spin
+                    Sp += spin # trick step
 
             acceptance_rate = len(self.acceptance_history)/self.M
-            print(acceptance_rate)
             self.acceptance_history = []
 
         self.model_configs[0] = configuration
@@ -117,6 +112,7 @@ class Metropolis:
             self.N = N
         self.model_configs = np.zeros((self.N,self.S))
         configuration = self.calibrate()
+        Sp = np.count_nonzero(configuration+1)
 
         # at the end of calibration the first configuration is already stored,
         # thus we have to sample other N-1 configurations
@@ -126,18 +122,13 @@ class Metropolis:
 
         for k, index in enumerate(flip_spins):
             spin = -configuration[index]
-            if self.acceptance(spin, index, flag = False):
+            if self.acceptance(Sp, spin, index):
                 configuration[index] = spin
-                self.acceptance_history.append(1)
+                Sp += spin
                 # if the new config is chosen, we memorize it
                 self.model_configs[k + 1] = configuration
             else:
                 # otherwise we store another time the last config
                 self.model_configs[k + 1] = configuration
-
-        acceptance_rate = len(self.acceptance_history)/(self.N-1)
-        if acceptance_rate>0.3:
-            print(acceptance_rate)
-        self.acceptance_history = []
 
         return self.model_configs

@@ -1,0 +1,21 @@
+CHANGELOG
+
+notebook:
+-added pairing function
+-removed vector of constraints functions generators
+-pre metropolis instantation:
+    lagrange_multipliers
+    exp_constraints
+    pairing function
+    model_m function (added a library version so i am considering to remove them here)
+
+metropolis.py:
+-set hemiltonian removed
+-dE function added
+-some changes in init
+-added local pairing and model_m
+-compute_energy taken outside the class
+-choice -> acceptance (metropolis syntax)
+-accceptance adapted with dE function
+-cleared calibrate (scusami nic, spero che mi vorrai bene lo stesso)
+-adapted sample to new calibrate
