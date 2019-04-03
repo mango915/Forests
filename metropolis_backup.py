@@ -3,24 +3,25 @@ import numpy as np
 def pairing(configs):
     # In each subplot there are more absent species than present (just an observation)
     # S+ - S-
-    S_present = np.count_nonzero(configs+1)
+    S_present = np.count_nonzero(configs, axis = (1)).flatten()
     # S_absent = S - S_present -> S_pm = 2*S_present - S
-    S_pm = 2*S_present - 299 # Broadcasting
+    S_pm = 2*S_present - S # Broadcasting
     # constraint C_0 = < (S+ - S-)^2 >
-    return np.power(S_pm,2)
+    return np.mean(np.power(S_pm,2))
 
 
 def model_m(configs):
     # assuming configs have a shape of (n, S) with S = 299
-    return configs.mean(axis=0)
+    p_i = np.count_nonzero(configs, axis = 0)/configs.shape[0]
+    return 2*p_i - 1
 
 
 def compute_energy(configs, L_multipliers):
     """Computes the energy of a configuration."""
     model_pair = pairing(configs)
-    #model_m_i = model_m(configs)
-    model_parameters = np.concatenate((model_pair[np.newaxis], configs))
-    return np.dot(model_parameters[1:], L_multipliers[1:]) + model_parameters[0]*L_multipliers[0]/299
+    model_m_i = model_m(configs)
+    model_parameters = np.concatenate((model_pair[np.newaxis], model_m_i))
+    return np.dot(model_parameters, L_multipliers)
 
 
 class Metropolis:
@@ -62,38 +63,21 @@ class Metropolis:
     def dE(self, Sp, spin, k):
         l_k = self.L_multipliers[k]
         l_0 = self.L_multipliers[0]
-        return 2*l_k*spin + 4*self.S*l_0*spin*(2*Sp - self.S + spin) # <----------- VALUES? ( > eps, < 0 ?)
+        return 2*l_k*spin + 4*l_0*spin*(2*Sp - self.S + spin) # <----------- VALUES? ( > eps, < 0 ?)
 
 
-    """    def acceptance(self, Sp, spin, k):
-            Implements Metropolis choice.
-            # regularizer?
-            dE = self.dE(Sp, spin, k)
-            if  dE < 0:
-                return True
-            else:
-                P = np.random.random()
-                if P < np.exp(-dE):                 #in teoria no <------------------- BETA?
-                    return True
-                else:
-                    return False
-    """
-
-    def acceptance(self, new, old):
+    def acceptance(self, Sp, spin, k):
         """Implements Metropolis choice."""
         # regularizer?
-        en1 = compute_energy(new, self.L_multipliers)
-        en2 = compute_energy(old, self.L_multipliers)
-
-        if  (en1-en2) < 0:
+        dE = self.dE(Sp, spin, k)
+        if  dE < 0:
             return True
         else:
             P = np.random.random()
-            if P < np.exp(-(en1-en2)):                 #in teoria no <------------------- BETA?
+            if P < np.exp(-dE):                 #in teoria no <------------------- BETA?
                 return True
             else:
                 return False
-
 
 
     def calibrate(self):
@@ -108,12 +92,10 @@ class Metropolis:
 
             # sort M indexes between 0 and S to flips
             flip_spins = np.random.randint(low = 0, high = self.S, size = self.M)
+
             for index in flip_spins:
-                new = np.copy(configuration) # !!!!!!!
-                new[index] = -configuration[index] # !!!!!!!
                 spin = -configuration[index]
-                if self.acceptance(new, configuration):     # !!!!!
-#                if self.acceptance(Sp, spin, index):     # <-------------- acceptances?
+                if self.acceptance(Sp, spin, index):     # <-------------- acceptances?
                     self.acceptance_history.append(1) #
                     configuration[index] = spin
                     Sp += spin # trick step
